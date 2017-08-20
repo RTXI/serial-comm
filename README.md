@@ -3,6 +3,8 @@
 **Requirements:** Serial       
 **Limitations:** Non-RT  
 
+![Serial Communication GUI](serial_comm.png)
+
 <!--start-->
 Control serial interface devices
 <!--end-->
