@@ -1,6 +1,6 @@
 ### Serial Communication Emulator
 
-**Requirements:** None
+**Requirements:** Serial       
 **Limitations:** Non-RT  
 
 <!--start-->
