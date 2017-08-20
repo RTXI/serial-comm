@@ -6,7 +6,7 @@
 ![Serial Communication GUI](serial_comm.png)
 
 <!--start-->
-Control serial interface devices
+Control serial interface devices through RTXI. Commands must be configured by the user for the specific instrument being controlled.
 <!--end-->
 
 #### Input Channels
