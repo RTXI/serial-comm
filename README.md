@@ -3,8 +3,10 @@
 **Requirements:** None
 **Limitations:** Non-RT  
 
+![]()
+
 <!--start-->
-Control serial interface devices
+Control serial interface devices.
 <!--end-->
 
 ####Input Channels
