@@ -3,23 +3,21 @@
 **Requirements:** None
 **Limitations:** Non-RT  
 
-![]()
-
 <!--start-->
-Control serial interface devices.
+Control serial interface devices
 <!--end-->
 
-####Input Channels
+#### Input Channels
 None  
 
-####Output Channels
+#### Output Channels
 None
 
-####Parameters
+#### Parameters
 1. Baud Rate (bps)
 2. Timeout - (Int) connection timeout  
 3. Sampling Rate (Hz)
 4. Serial Command
 
-####States
+#### States
 None  
