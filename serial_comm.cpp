@@ -28,9 +28,11 @@ extern "C" Plugin::Object *createRTXIPlugin(void)
 static DefaultGUIModel::variable_t vars[] = 
 {
 	{"Baud Rate", "", DefaultGUIModel::PARAMETER | DefaultGUIModel::INTEGER,},
-	{"Timeout", "Connection Timeout", DefaultGUIModel::PARAMETER | DefaultGUIModel::INTEGER,},
+	{"Timeout", "Connection Timeout (ms)", DefaultGUIModel::PARAMETER | DefaultGUIModel::INTEGER,},
 	{"Sampling Rate", "Hz", DefaultGUIModel::PARAMETER, },
-	{"Command", "Serial command to send to device", DefaultGUIModel::COMMENT, },
+	{"Command 1", "Serial command to send to device", DefaultGUIModel::COMMENT, },
+	{"Command 2", "Serial command to send to device", DefaultGUIModel::COMMENT, },
+	{"Command Interval (s)", "Time between sending command 1 and command 2", DefaultGUIModel::PARAMETER, },
 };
 
 static size_t num_vars = sizeof(vars)/sizeof(DefaultGUIModel::variable_t);
@@ -54,21 +56,6 @@ void SerialComm::execute(void)
 {
 }
 
-/*
- * Skeleton function for basic acquisition of data from connected SerialComm
- * Users should customize parsing of incoming data based upon their SerialComm's
- * specific configuration and serial settings.
- */
-void SerialComm::acquireData(void)
-{
-	if(fd != -1)
-	{
-		serialport_read_until(fd, buf, ',', buf_max, timeout);
-		serialport_read_until(fd, buf, ';', buf_max, timeout);
-		serialport_read_until(fd, buf, '\n', buf_max, timeout);
-	}
-}
-
 void SerialComm::update(DefaultGUIModel::update_flags_t flag)
 {
 	switch(flag) {
@@ -79,22 +66,32 @@ void SerialComm::update(DefaultGUIModel::update_flags_t flag)
 			timeout = 5000;
 			eolchar = '\n';
 			memset(buf,0,buf_max); 
+			interval = 0;
+			curr_command = 0;
 			setParameter("Baud Rate", baudrate);
 			setParameter("Timeout", timeout);
 			setParameter("Sampling Rate", fs);
-			setComment("Command","No Command");
+			setParameter("Command Interval (s)", interval);
+			setComment("Command 1","No Command");
+			setComment("Command 2","No Command");
 			break;
 
 		case MODIFY:
 			baudrate = getParameter("Baud Rate").toInt();
 			timeout = getParameter("Timeout").toInt();
 			fs = getParameter("Sampling Rate").toDouble();
+			interval = getParameter("Command Interval (s)").toDouble();
+			curr_command = 0;
 			break;
 
 		case PAUSE:
+			timer->stop();
+			curr_command = 0;
 			break;
 
 		case UNPAUSE:
+			sendCommand();
+			timer->start(interval*1000);
 			break;
 
 		default:
@@ -147,6 +144,12 @@ void SerialComm::customizeGUI(void)
 	messageBar->showMessage(tr(""));
 	status_layout->addWidget(messageBar, 4, 0);
 
+	// Timer
+	timer = new QTimer();
+	timer->setTimerType(Qt::CoarseTimer);
+	QObject::connect(timer, SIGNAL(timeout()), this, SLOT(sendCommand()));
+
+	// FInal layout
 	customlayout->addWidget(modeBox, 0,0);
 	customlayout->addWidget(status_group, 2, 0);
 	setLayout(customlayout);
@@ -160,11 +163,35 @@ void SerialComm::readCommand()
 
 void SerialComm::sendCommand()
 {
-	QString command = getComment("Command");
+	QString command;
+	if (curr_command == 0) 
+	{
+		command = getComment("Command 1");
+		curr_command++;
+	}
+	else if (curr_command == 1)
+	{
+		command = getComment("Command 2");
+		curr_command++;
+	}
+	else
+	{
+		command = "";
+	}
 	std::string command_str = command.toStdString();
 	command_str = command_str + '\r';
 	const char* command_c = command_str.c_str();
 	serialport_write(fd, command_c);
+	readCommand();
+	if (curr_command  == 2)
+	{
+		pauseButton->setChecked(true);
+	}
+}
+
+void SerialComm::sendCommand(const char* str)
+{
+	serialport_write(fd, str);
 	readCommand();
 }
 
@@ -174,6 +201,7 @@ void SerialComm::connectSerialComm()
 	{
 		statusBar->showMessage(tr("Connected."));
 		serialport_flush(fd);
+		sendCommand("*IDN?\r\n");
 	}
 	else
 	{
@@ -188,14 +216,14 @@ std::list<std::string> getComList() {
 	std::string devicedir = sysdir;
 	std::list<std::string> comList;
 
-	// Scan through /sys/class/tty - it contains all tty-devices in the system
+	// Scan and get all devices from /dev
 	n = scandir(sysdir, &namelist, NULL, NULL);
 	if (n < 0)
 		perror("scandir");
 	else {
 		while (n--) {
 			if (strstr(namelist[n]->d_name,"tty"))
-				comList.push_back(devicedir + namelist[n]->d_name);
+			comList.push_back(devicedir + namelist[n]->d_name);
 		}
 		free(namelist);
 	}

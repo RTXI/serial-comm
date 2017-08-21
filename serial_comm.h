@@ -47,13 +47,15 @@ class SerialComm : public DefaultGUIModel
 		int baudrate;
 		int timeout;
 		double fs;
+		double interval;
 		QComboBox *portList;
 		QStatusBar *statusBar, *messageBar;
 		QTimer *timer;
+		size_t curr_command;
 
 		private slots:
 			void connectSerialComm();
-		void acquireData();
 		void sendCommand();
+		void sendCommand(const char*);
 		void readCommand();
 };
