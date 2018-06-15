@@ -44,6 +44,16 @@ SerialComm::SerialComm(void) : DefaultGUIModel("SerialComm",::vars,::num_vars)
 	customizeGUI();
 	refresh();
 	QTimer::singleShot(0, this, SLOT(resizeMe()));
+
+	QThread* thread = new QThread;
+	Worker* worker = new Worker();
+	worker->moveToThread(thread);
+	QObject::connect(worker, SIGNAL (error(QString)), this, SLOT (errorString(QString)));
+	QObject::connect(thread, SIGNAL (started()), worker, SLOT (process()));
+	QObject::connect(worker, SIGNAL (finished()), thread, SLOT (quit()));
+	QObject::connect(worker, SIGNAL (finished()), worker, SLOT (deleteLater()));
+	QObject::connect(thread, SIGNAL (finished()), thread, SLOT (deleteLater()));
+	thread->start();
 }
 
 SerialComm::~SerialComm(void) { }
@@ -120,15 +130,15 @@ void SerialComm::customizeGUI(void)
 	// Connect button
 	QPushButton *connectButton = new QPushButton("Connect");
 	customlayout->addWidget(connectButton);
-	QObject::connect(connectButton, SIGNAL(clicked()), this, SLOT(connectSerialComm()));
+	QObject::connect(connectButton, SIGNAL(clicked()), this, SLOT(connectSerialComm()), static_cast<Qt::ConnectionType>(Qt::BlockingQueuedConnection));
 	modeBoxLayout->addWidget(connectButton);
 	QPushButton *sendButton = new QPushButton("Send Command");
 	customlayout->addWidget(sendButton);
-	QObject::connect(sendButton, SIGNAL(clicked()), this, SLOT(sendCommand()));
+	QObject::connect(sendButton, SIGNAL(clicked()), this, SLOT(sendCommand()), static_cast<Qt::ConnectionType>(Qt::BlockingQueuedConnection));
 	modeBoxLayout->addWidget(sendButton);
 	QPushButton *readButton = new QPushButton("Read Command");
 	customlayout->addWidget(readButton);
-	QObject::connect(readButton, SIGNAL(clicked()), this, SLOT(readCommand()));
+	QObject::connect(readButton, SIGNAL(clicked()), this, SLOT(readCommand()), static_cast<Qt::ConnectionType>(Qt::BlockingQueuedConnection));
 	modeBoxLayout->addWidget(readButton);
 
 	// Status bar
@@ -223,11 +233,26 @@ std::list<std::string> getComList() {
 	else {
 		while (n--) {
 			if (strstr(namelist[n]->d_name,"tty"))
-			comList.push_back(devicedir + namelist[n]->d_name);
+				comList.push_back(devicedir + namelist[n]->d_name);
 		}
 		free(namelist);
 	}
 
 	// Return the lsit of detected comports
 	return comList;
+}
+
+Worker::Worker() { // Constructor
+	// you could copy data from constructor arguments to internal variables here.
+}
+
+Worker::~Worker() { // Destructor
+	// free resources
+}
+
+void Worker::process() { // Process. Start processing data.
+	// allocate resources using new here
+	qDebug("Hello World!");
+	printf("running...\n");
+	emit finished();
 }
